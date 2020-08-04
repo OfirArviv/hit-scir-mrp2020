@@ -35,10 +35,17 @@ class TransitionParser(Model):
                  action_embedding: Embedding = None,
                  concept_label_embedding: Embedding = None,
                  initializer: InitializerApplicator = InitializerApplicator(),
-                 regularizer: Optional[RegularizerApplicator] = None
+                 regularizer: Optional[RegularizerApplicator] = None,
+                 actions_namespace: str = 'actions',
+                 concept_label_namespace: str = 'concept_label',
+                 buffer: Model = None,
+                 stack: Model = None
                  ) -> None:
 
         super(TransitionParser, self).__init__(vocab, regularizer)
+
+        self._actions_namespace = actions_namespace
+        self._concept_label_namespace = concept_label_namespace
 
         self._unlabeled_correct = 0
         self._labeled_correct = 0
@@ -48,8 +55,8 @@ class TransitionParser(Model):
         self._exact_labeled_correct = 0
         self._total_sentences = 0
 
-        self.num_actions = vocab.get_vocab_size('actions')
-        self.num_concept_label = vocab.get_vocab_size('concept_label')
+        self.num_actions = vocab.get_vocab_size(self._actions_namespace)
+        self.num_concept_label = vocab.get_vocab_size(self._concept_label_namespace)
         self.text_field_embedder = text_field_embedder
         self.lemma_text_field_embedder = lemma_text_field_embedder
         self._pos_tag_embedding = pos_tag_embedding
@@ -89,19 +96,24 @@ class TransitionParser(Model):
 
         self._input_dropout = Dropout(input_dropout)
 
-        self.buffer = StackRnn(input_size=self.word_dim,
-                               hidden_size=self.hidden_dim,
-                               num_layers=num_layers,
-                               recurrent_dropout_probability=recurrent_dropout_probability,
-                               layer_dropout_probability=layer_dropout_probability,
-                               same_dropout_mask_per_instance=same_dropout_mask_per_instance)
-
-        self.stack = StackRnn(input_size=self.word_dim,
-                              hidden_size=self.hidden_dim,
-                              num_layers=num_layers,
-                              recurrent_dropout_probability=recurrent_dropout_probability,
-                              layer_dropout_probability=layer_dropout_probability,
-                              same_dropout_mask_per_instance=same_dropout_mask_per_instance)
+        if buffer:
+            self.buffer = buffer
+        else:
+            self.buffer = StackRnn(input_size=self.word_dim,
+                                   hidden_size=self.hidden_dim,
+                                   num_layers=num_layers,
+                                   recurrent_dropout_probability=recurrent_dropout_probability,
+                                   layer_dropout_probability=layer_dropout_probability,
+                                   same_dropout_mask_per_instance=same_dropout_mask_per_instance)
+        if stack:
+            self.stack = stack
+        else:
+            self.stack = StackRnn(input_size=self.word_dim,
+                                  hidden_size=self.hidden_dim,
+                                  num_layers=num_layers,
+                                  recurrent_dropout_probability=recurrent_dropout_probability,
+                                  layer_dropout_probability=layer_dropout_probability,
+                                  same_dropout_mask_per_instance=same_dropout_mask_per_instance)
 
         self.deque = StackRnn(input_size=self.word_dim,
                               hidden_size=self.hidden_dim,
@@ -155,8 +167,8 @@ class TransitionParser(Model):
                             extra={'token': 'protection_symbol'})
 
         action_id = {
-            action_: [self.vocab.get_token_index(a, namespace='actions') for a in
-                      self.vocab.get_token_to_index_vocabulary('actions').keys() if a.startswith(action_)]
+            action_: [self.vocab.get_token_index(a, namespace=self._actions_namespace) for a in
+                      self.vocab.get_token_to_index_vocabulary(self._actions_namespace).keys() if a.startswith(action_)]
             for action_ in
             ["SHIFT", "REDUCE", "LEFT-EDGE", "RIGHT-EDGE", "SELF-EDGE", "DROP", "TOP", "PASS", "START", "END", "FINISH"]
         }
@@ -255,10 +267,10 @@ class TransitionParser(Model):
                         # get concept label and corresponding embedding
                         concept_node_token = len(concept_node[sent_idx]) + sent_len[sent_idx]
                         stack_emb = self.stack.get_output(sent_idx)
-                        concept_node_label_token = self.vocab.get_token_from_index(action, namespace='actions') \
+                        concept_node_label_token = self.vocab.get_token_from_index(action, namespace=self._actions_namespace) \
                             .split('#SPLIT_TAG#', maxsplit=1)[1]
                         concept_node_label = self.vocab.get_token_index(concept_node_label_token,
-                                                                        namespace='concept_label')
+                                                                        namespace=self._concept_label_namespace)
                         concept_node_label_emb = self.concept_label_embedding(
                             torch.tensor(concept_node_label, device=embedded_text_input.device))
 
@@ -288,7 +300,7 @@ class TransitionParser(Model):
 
                         concept_node_label_token = concept_node[sent_idx][concept_node_token]["label"]
                         concept_node_label = self.vocab.get_token_index(concept_node_label_token,
-                                                                        namespace='concept_label')
+                                                                        namespace=self._concept_label_namespace)
                         concept_node_label_emb = self.concept_label_embedding(
                             torch.tensor(concept_node_label, device=embedded_text_input.device))
 
@@ -325,7 +337,7 @@ class TransitionParser(Model):
                         edge_list[sent_idx].append((mod_tok,
                                                     head_tok,
                                                     self.vocab.get_token_from_index(action,
-                                                                                    namespace='actions').split(
+                                                                                    namespace=self._actions_namespace).split(
                                                         '#SPLIT_TAG#', maxsplit=1)[1]))
 
                         # compute composed representation
@@ -393,9 +405,11 @@ class TransitionParser(Model):
                                            input=self.action_embedding(
                                                torch.tensor(action, device=embedded_text_input.device)),
                                            extra={
-                                               'token': self.vocab.get_token_from_index(action, namespace='actions')})
+                                               'token': self.vocab.get_token_from_index(action,
+                                                                                        namespace=self._actions_namespace)})
 
-                    action_list[sent_idx].append(self.vocab.get_token_from_index(action, namespace='actions'))
+                    action_list[sent_idx].append(
+                        self.vocab.get_token_from_index(action, namespace=self._actions_namespace))
 
                     action_sequence_length[sent_idx] += 1
 
@@ -429,10 +443,10 @@ class TransitionParser(Model):
                 tokens: Dict[str, torch.LongTensor],
                 metadata: List[Dict[str, Any]],
                 gold_actions: Dict[str, torch.LongTensor] = None,
-                lemmas: Dict[str, torch.LongTensor] = None,
-                pos_tags: torch.LongTensor = None,
+                # lemmas: Dict[str, torch.LongTensor] = None,
+                # pos_tags: torch.LongTensor = None,
                 arc_tags: torch.LongTensor = None,
-                concept_label: torch.LongTensor = None,
+                # concept_label: torch.LongTensor = None,
                 ) -> Dict[str, torch.LongTensor]:
 
         batch_size = len(metadata)
@@ -443,7 +457,8 @@ class TransitionParser(Model):
         oracle_actions = None
         if gold_actions is not None:
             oracle_actions = [d['gold_actions'] for d in metadata]
-            oracle_actions = [[self.vocab.get_token_index(s, namespace='actions') for s in l] for l in oracle_actions]
+            oracle_actions = [[self.vocab.get_token_index(s, namespace=self._actions_namespace) for s in l] for l in
+                              oracle_actions]
 
         embedded_text_input = self.text_field_embedder(tokens)
         embedded_text_input = self._input_dropout(embedded_text_input)
@@ -455,8 +470,6 @@ class TransitionParser(Model):
                                             oracle_actions=oracle_actions)
 
             _loss = ret_train['loss']
-            if torch.isnan(_loss):
-                _loss = torch.tensor(0)
             output_dict = {'loss': _loss}
             return output_dict
 

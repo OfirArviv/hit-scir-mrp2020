@@ -4,11 +4,12 @@ Based on augmented_lstm.py and stacked_bidirectional_lstm.py from AllenNLP 0.8.3
 from typing import Optional, Tuple, Type, List, Dict, Any
 
 import torch
+from allennlp.models import Model
 from allennlp.nn.util import get_dropout_mask
-
 from modules.stack_rnn_cell import StackRnnCellBase, StackLstmCell
 
 
+@Model.register("stack_rnn")
 class StackRnn(torch.nn.Module):
     """
     A standard stacked LSTM where the LSTM layers

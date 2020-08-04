@@ -288,6 +288,7 @@ class EDSDatasetReaderConll2019(DatasetReader):
                  action_indexers: Dict[str, TokenIndexer] = None,
                  arc_tag_indexers: Dict[str, TokenIndexer] = None,
                  concept_label_indexers: Dict[str, TokenIndexer] = None,
+                 concept_label_namespace: str = 'concept_label',
                  lazy: bool = False) -> None:
         super().__init__(lazy)
         self._token_indexers = token_indexers or {'tokens': SingleIdTokenIndexer()}
@@ -305,7 +306,7 @@ class EDSDatasetReaderConll2019(DatasetReader):
             self._arc_tag_indexers = arc_tag_indexers
 
         self._concept_label_indexers = concept_label_indexers or {
-            'concept_label': SingleIdTokenIndexer(namespace='concept_label')}
+            'concept_label': SingleIdTokenIndexer(namespace=concept_label_namespace)}
 
     @overrides
     def _read(self, file_path: str):

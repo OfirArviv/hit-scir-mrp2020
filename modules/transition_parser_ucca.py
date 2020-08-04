@@ -34,10 +34,15 @@ class TransitionParser(Model):
                  pos_tag_embedding: Embedding = None,
                  action_embedding: Embedding = None,
                  initializer: InitializerApplicator = InitializerApplicator(),
-                 regularizer: Optional[RegularizerApplicator] = None
+                 regularizer: Optional[RegularizerApplicator] = None,
+                 actions_namespace: str = 'actions',
+                 buffer: StackRnn = None,
+                 stack: StackRnn = None
                  ) -> None:
 
         super(TransitionParser, self).__init__(vocab, regularizer)
+
+        self._actions_namespace = actions_namespace
 
         self._primary_labeled_correct = 0
         self._primary_unlabeled_correct = 0
@@ -55,7 +60,7 @@ class TransitionParser(Model):
 
         self._total_sentences = 0
 
-        self.num_actions = vocab.get_vocab_size('actions')
+        self.num_actions = vocab.get_vocab_size(self._actions_namespace)
         self.text_field_embedder = text_field_embedder
         self.lemma_text_field_embedder = lemma_text_field_embedder
         self._pos_tag_embedding = pos_tag_embedding
@@ -89,19 +94,24 @@ class TransitionParser(Model):
 
         self._input_dropout = Dropout(input_dropout)
 
-        self.buffer = StackRnn(input_size=self.word_dim,
-                               hidden_size=self.hidden_dim,
-                               num_layers=num_layers,
-                               recurrent_dropout_probability=recurrent_dropout_probability,
-                               layer_dropout_probability=layer_dropout_probability,
-                               same_dropout_mask_per_instance=same_dropout_mask_per_instance)
-
-        self.stack = StackRnn(input_size=self.word_dim,
-                              hidden_size=self.hidden_dim,
-                              num_layers=num_layers,
-                              recurrent_dropout_probability=recurrent_dropout_probability,
-                              layer_dropout_probability=layer_dropout_probability,
-                              same_dropout_mask_per_instance=same_dropout_mask_per_instance)
+        if buffer:
+            self.buffer = buffer
+        else:
+            self.buffer = StackRnn(input_size=self.word_dim,
+                                   hidden_size=self.hidden_dim,
+                                   num_layers=num_layers,
+                                   recurrent_dropout_probability=recurrent_dropout_probability,
+                                   layer_dropout_probability=layer_dropout_probability,
+                                   same_dropout_mask_per_instance=same_dropout_mask_per_instance)
+        if stack:
+            self.stack = stack
+        else:
+            self.stack = StackRnn(input_size=self.word_dim,
+                                  hidden_size=self.hidden_dim,
+                                  num_layers=num_layers,
+                                  recurrent_dropout_probability=recurrent_dropout_probability,
+                                  layer_dropout_probability=layer_dropout_probability,
+                                  same_dropout_mask_per_instance=same_dropout_mask_per_instance)
 
         self.action_stack = StackRnn(input_size=self.action_dim,
                                      hidden_size=self.hidden_dim,
@@ -222,8 +232,8 @@ class TransitionParser(Model):
             ret_top_node[sent_idx] = [sent_len[sent_idx]]
 
         action_id = {
-            action_: [self.vocab.get_token_index(a, namespace='actions') for a in
-                      self.vocab.get_token_to_index_vocabulary('actions').keys() if a.startswith(action_)]
+            action_: [self.vocab.get_token_index(a, namespace=self._actions_namespace) for a in
+                      self.vocab.get_token_to_index_vocabulary(self._actions_namespace).keys() if a.startswith(action_)]
             for action_ in
             ["SHIFT", "REDUCE", "NODE", "REMOTE-NODE", "LEFT-EDGE", "RIGHT-EDGE", "LEFT-REMOTE", "RIGHT-REMOTE", "SWAP",
              "FINISH"]
@@ -306,8 +316,8 @@ class TransitionParser(Model):
                                            input=self.action_embedding(
                                                torch.tensor(action, device=embedded_text_input.device)),
                                            extra={
-                                               'token': self.vocab.get_token_from_index(action, namespace='actions')})
-                    action_list[sent_idx].append(self.vocab.get_token_from_index(action, namespace='actions'))
+                                               'token': self.vocab.get_token_from_index(action, namespace=self._actions_namespace)})
+                    action_list[sent_idx].append(self.vocab.get_token_from_index(action, namespace=self._actions_namespace))
 
                     if log_probs is not None:
                         # append the action-specific loss
@@ -353,7 +363,7 @@ class TransitionParser(Model):
                         if oracle_actions is None:
                             edge_list[sent_idx].append((mod_tok,
                                                         head_tok,
-                                                        self.vocab.get_token_from_index(action, namespace='actions')
+                                                        self.vocab.get_token_from_index(action, namespace=self._actions_namespace)
                                                         .split(':', maxsplit=1)[1]))
 
                         # # compute composed representation
@@ -455,6 +465,7 @@ class TransitionParser(Model):
                 lemmas: Dict[str, torch.LongTensor] = None,
                 pos_tags: torch.LongTensor = None,
                 arc_tags: torch.LongTensor = None,
+                concept_label: torch.LongTensor = None,
                 ) -> Dict[str, torch.LongTensor]:
 
         batch_size = len(metadata)
@@ -465,7 +476,7 @@ class TransitionParser(Model):
         oracle_actions = None
         if gold_actions is not None:
             oracle_actions = [d['gold_actions'] for d in metadata]
-            oracle_actions = [[self.vocab.get_token_index(s, namespace='actions') for s in l] for l in oracle_actions]
+            oracle_actions = [[self.vocab.get_token_index(s, namespace=self._actions_namespace) for s in l] for l in oracle_actions]
 
         embedded_text_input = self.text_field_embedder(tokens)
         embedded_text_input = self._input_dropout(embedded_text_input)
