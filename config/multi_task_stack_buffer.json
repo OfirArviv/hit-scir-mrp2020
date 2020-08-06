@@ -1,17 +1,16 @@
 {
   "vocabulary": {
-    "directory_path": "C:\\Users\\t-ofarvi\\source\\PycharmProjects\\vocabulary"
+    "directory_path": "checkpoints/vocabulary"
   },
   "dataset_reader": {
     "type": "multi-task",
-    "epoch_size_per_framework": 120,
     "dataset_readers": {
       "ucca": {
         "type": "ucca_reader_conll2019",
         "token_indexers": {
           "tokens": {
             "type": "bert-pretrained",
-            "pretrained_model": "bert-base-multilingual-cased",
+            "pretrained_model": "bert-large-cased",
             "do_lowercase": false
           }
         },
@@ -33,7 +32,7 @@
         "token_indexers": {
           "tokens": {
             "type": "bert-pretrained",
-            "pretrained_model": "bert-base-multilingual-cased",
+            "pretrained_model": "bert-large-cased",
             "do_lowercase": false
           }
         },
@@ -60,13 +59,14 @@
   },
   "validation_dataset_reader": {
     "type": "multi-task",
+    "dataset_extension": "val.aug.mrp",
     "dataset_readers": {
       "ucca": {
         "type": "ucca_reader_conll2019",
         "token_indexers": {
           "tokens": {
             "type": "bert-pretrained",
-            "pretrained_model": "bert-base-multilingual-cased",
+            "pretrained_model": "bert-large-cased",
             "do_lowercase": false
           }
         },
@@ -88,7 +88,7 @@
         "token_indexers": {
           "tokens": {
             "type": "bert-pretrained",
-            "pretrained_model": "bert-base-multilingual-cased",
+            "pretrained_model": "bert-large-cased",
             "do_lowercase": false
           }
         },
@@ -113,14 +113,14 @@
       }
     }
   },
-  "train_data_path": "C:/Users/t-ofarvi/Desktop/HUJI/mrp/train-small",
-  "validation_data_path": "C:/Users/t-ofarvi/Desktop/HUJI/mrp/dev-small",
+  "train_data_path": "data",
+  "validation_data_path": "data",
   "model": {
     "type": "multi-task",
     "shared_text_field_embedder": {
       "tokens": {
         "type": "bert-pretrained",
-        "pretrained_model": "bert-base-multilingual-cased",
+        "pretrained_model": "bert-large-cased",
         "requires_grad": false,
         "top_layer_only": false
       },
@@ -129,21 +129,15 @@
       },
       "allow_unmatched_keys": true
     },
-    "shared_stack": {
-      "type": "stack_rnn",
-      "input_size": 768,
-      "hidden_size": 250,
-      "num_layers": 2,
-      "recurrent_dropout_probability":0.3,
-      "layer_dropout_probability": 0.3
-    },
-    "shared_buffer": {
-      "type": "stack_rnn",
-      "input_size": 768,
-      "hidden_size": 250,
-      "num_layers": 2,
-      "recurrent_dropout_probability":0.3,
-      "layer_dropout_probability": 0.3
+    "shared_encoder":{
+      "type": "stacked_self_attention",
+      "input_dim": 1024,
+      "hidden_dim": 768,
+      "projection_dim": 768,
+      "feedforward_hidden_dim": 768,
+      "num_layers": 3,
+      "num_attention_heads": 8,
+      "use_positional_encoding": false
     },
     "models": {
       "ucca": {
@@ -152,56 +146,94 @@
         "text_field_embedder": {
           "tokens": {
             "type": "bert-pretrained",
-            "pretrained_model": "bert-base-multilingual-cased",
+            "pretrained_model": "bert-large-cased",
             "requires_grad": false,
             "top_layer_only": false
           },
           "embedder_to_indexer_map": {
-            "tokens": ["tokens", "tokens-offsets", "tokens-type-ids"]
+            "tokens": [
+              "tokens",
+              "tokens-offsets",
+              "tokens-type-ids"
+            ]
           },
           "allow_unmatched_keys": true
         },
         "mces_metric": {
-            "type": "mces",
-            "output_type": "f",
-            "trace": 0,
-            "cores": 10
+          "type": "mces",
+          "output_type": "f",
+          "trace": 0,
+          "cores": 10
         },
         "action_embedding": {
           "embedding_dim": 50,
           "vocab_namespace": "actions"
         },
         "word_dim": 768,
-        "hidden_dim": 250,
+        "hidden_dim": 200,
         "action_dim": 50,
-        "ratio_dim" : 1,
+        "ratio_dim": 1,
         "num_layers": 2,
         "recurrent_dropout_probability": 0.2,
         "layer_dropout_probability": 0.2,
         "same_dropout_mask_per_instance": true,
         "input_dropout": 0.2,
         "initializer": [
-          ["p_.*weight", {"type": "xavier_uniform"}],
-          ["p_.*bias", {"type": "zero"}],
-          ["pempty_buffer_emb", {"type": "normal"}],
-          ["proot_stack_emb", {"type": "normal"}],
-          ["pempty_action_emb", {"type": "normal"}],
-          ["pempty_stack_emb", {"type": "normal"}]
+          [
+            "p_.*weight",
+            {
+              "type": "xavier_uniform"
+            }
+          ],
+          [
+            "p_.*bias",
+            {
+              "type": "zero"
+            }
+          ],
+          [
+            "pempty_buffer_emb",
+            {
+              "type": "normal"
+            }
+          ],
+          [
+            "proot_stack_emb",
+            {
+              "type": "normal"
+            }
+          ],
+          [
+            "pempty_action_emb",
+            {
+              "type": "normal"
+            }
+          ],
+          [
+            "pempty_stack_emb",
+            {
+              "type": "normal"
+            }
+          ]
         ]
       },
-      "eds":  {
+      "eds": {
         "type": "transition_parser_eds_multi_task",
         "actions_namespace": "eds_actions",
         "concept_label_namespace": "eds_concept_label",
         "text_field_embedder": {
           "tokens": {
             "type": "bert-pretrained",
-            "pretrained_model": "bert-base-multilingual-cased",
+            "pretrained_model": "bert-large-cased",
             "requires_grad": false,
             "top_layer_only": false
           },
           "embedder_to_indexer_map": {
-            "tokens": ["tokens", "tokens-offsets", "tokens-type-ids"]
+            "tokens": [
+              "tokens",
+              "tokens-offsets",
+              "tokens-type-ids"
+            ]
           },
           "allow_unmatched_keys": true
         },
@@ -232,7 +264,7 @@
           "vocab_namespace": "eds_concept_label"
         },
         "word_dim": 768,
-        "hidden_dim": 250,
+        "hidden_dim": 200,
         "action_dim": 50,
         "concept_label_dim": 50,
         "num_layers": 2,
@@ -241,13 +273,48 @@
         "same_dropout_mask_per_instance": true,
         "input_dropout": 0.2,
         "initializer": [
-          ["p_.*weight", {"type": "xavier_uniform"}],
-          ["p_.*bias", {"type": "zero"}],
-          ["pempty_buffer_emb", {"type": "normal"}],
-          ["proot_stack_emb", {"type": "normal"}],
-          ["pempty_action_emb", {"type": "normal"}],
-          ["pempty_stack_emb", {"type": "normal"}],
-          ["pempty_deque_emb", {"type": "normal"}]
+          [
+            "p_.*weight",
+            {
+              "type": "xavier_uniform"
+            }
+          ],
+          [
+            "p_.*bias",
+            {
+              "type": "zero"
+            }
+          ],
+          [
+            "pempty_buffer_emb",
+            {
+              "type": "normal"
+            }
+          ],
+          [
+            "proot_stack_emb",
+            {
+              "type": "normal"
+            }
+          ],
+          [
+            "pempty_action_emb",
+            {
+              "type": "normal"
+            }
+          ],
+          [
+            "pempty_stack_emb",
+            {
+              "type": "normal"
+            }
+          ],
+          [
+            "pempty_deque_emb",
+            {
+              "type": "normal"
+            }
+          ]
         ]
       }
     }
@@ -267,7 +334,7 @@
     "grad_norm": 5.0,
     "grad_clipping": 5.0,
     "patience": 50,
-    "cuda_device": 0,
+    "cuda_device": -1,
     "validation_metric": "+average_all-f",
     "optimizer": {
       "type": "adam",

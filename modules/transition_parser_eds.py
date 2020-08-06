@@ -443,10 +443,10 @@ class TransitionParser(Model):
                 tokens: Dict[str, torch.LongTensor],
                 metadata: List[Dict[str, Any]],
                 gold_actions: Dict[str, torch.LongTensor] = None,
-                # lemmas: Dict[str, torch.LongTensor] = None,
-                # pos_tags: torch.LongTensor = None,
+                lemmas: Dict[str, torch.LongTensor] = None,
+                pos_tags: torch.LongTensor = None,
                 arc_tags: torch.LongTensor = None,
-                # concept_label: torch.LongTensor = None,
+                concept_label: torch.LongTensor = None,
                 ) -> Dict[str, torch.LongTensor]:
 
         batch_size = len(metadata)

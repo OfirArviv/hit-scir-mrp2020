@@ -14,7 +14,7 @@ from modules.stack_rnn import StackRnn
 if __name__ == '__main__':
     dirname, filename = os.path.split(os.path.abspath(__file__))
     config_file = f'{dirname}/config/multi_task_stack_buffer.json'
-    serialization_dir = "C:/Users/t-ofarvi/source/PycharmProjects/tryout-model/"
+    serialization_dir = f'{dirname}/checkpoints/'
 
     # Training will fail if the serialization directory already
     # has stuff in it. If you are running the same training loop
@@ -30,7 +30,10 @@ if __name__ == '__main__':
         "train",
         config_file,
         "-s", serialization_dir,
-        "--include-package", "multi_task",
+        "--include-package", "utils",
+        "--include-package","multi_task" ,
+        "--include-package", "modules",
+        "--include-package", "metrics",
         "--file-friendly-logging",
     ]
 

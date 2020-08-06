@@ -49,7 +49,7 @@ class MultiTaskDatasetReader(DatasetReader):
                  dataset_readers: Dict[str, DatasetReader],
                  sort_by_length: bool = True,
                  epoch_size_per_framework: int = None,
-                 dataset_extension: str = '.aux.mrp') -> None:
+                 dataset_extension: str = 'train.aug.mrp') -> None:
         # DatasetReader need to be lazy in order to support epoch_size_per_framework.
         # In practice, the dataset is not lazy as it saves all the instances in memory
         is_lazy = epoch_size_per_framework is not None
@@ -111,7 +111,7 @@ class MultiTaskDatasetReader(DatasetReader):
             if path in self._cached_instances[framework_label]:
                 continue
 
-            dataset_list = list(pathlib.Path(path).glob(f'{framework_label}/*{self._dataset_extension}'))
+            dataset_list = list(pathlib.Path(path).glob(f'{framework_label}.{self._dataset_extension}'))
 
             assert len(dataset_list) > 0, \
                 f'MultiTaskDatasetReader did not find any dataset files for {framework_label} in {path}'
