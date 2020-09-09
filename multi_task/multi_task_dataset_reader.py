@@ -48,6 +48,7 @@ class MultiTaskDatasetReader(DatasetReader):
     def __init__(self,
                  dataset_readers: Dict[str, DatasetReader],
                  sort_by_length: bool = True,
+                 filter_by_length: int = None,
                  epoch_size_per_framework: int = None,
                  dataset_extension: str = 'train.aug.mrp') -> None:
         # DatasetReader need to be lazy in order to support epoch_size_per_framework.
@@ -59,6 +60,7 @@ class MultiTaskDatasetReader(DatasetReader):
             "Do not support sub dataset readers laziness"
 
         self._sort_by_length = sort_by_length
+        self._filter_by_length = filter_by_length
         self._epoch_size_per_framework = epoch_size_per_framework
         self._dataset_extension = dataset_extension
 
@@ -68,7 +70,7 @@ class MultiTaskDatasetReader(DatasetReader):
 
         if epoch_size_per_framework is not None:
             self._next_instances_to_read: Dict[str, Dict[str, List[Instance]]] = \
-                    {framework_label: {} for framework_label in self._dataset_readers.keys()}
+                {framework_label: {} for framework_label in self._dataset_readers.keys()}
 
     @overrides
     def _read(self, path: str):
@@ -126,3 +128,7 @@ class MultiTaskDatasetReader(DatasetReader):
             if self._sort_by_length:
                 self._cached_instances[framework_label][path].sort(
                     key=lambda instance: instance["tokens"].sequence_length())
+            if self._filter_by_length:
+                self._cached_instances[framework_label][path] = \
+                    list(filter(lambda instance: instance["tokens"].sequence_length() <= self._filter_by_length,
+                                self._cached_instances[framework_label][path].copy()))

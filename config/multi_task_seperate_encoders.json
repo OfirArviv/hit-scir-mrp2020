@@ -4,6 +4,8 @@
   },
   "dataset_reader": {
     "type": "multi-task",
+    "dataset_extension": "val.aug.mrp",
+    "filter_by_length": 100,
     "dataset_readers": {
       "ucca": {
         "type": "ucca_reader_conll2019",
@@ -60,6 +62,7 @@
   "validation_dataset_reader": {
     "type": "multi-task",
     "dataset_extension": "val.aug.mrp",
+    "filter_by_length": 200,
     "dataset_readers": {
       "ucca": {
         "type": "ucca_reader_conll2019",
@@ -132,9 +135,29 @@
     "shared_encoder":{
       "type": "stacked_self_attention",
       "input_dim": 1024,
-      "hidden_dim": 512,
-      "projection_dim": 768,
-      "feedforward_hidden_dim": 768,
+      "hidden_dim": 768,
+      "projection_dim": 512,
+      "feedforward_hidden_dim": 512,
+      "num_layers": 3,
+      "num_attention_heads": 8,
+      "use_positional_encoding": false
+    },
+    "task_1_encoder": {
+      "type": "stacked_self_attention",
+      "input_dim": 768,
+      "hidden_dim": 768,
+      "projection_dim": 512,
+      "feedforward_hidden_dim": 512,
+      "num_layers": 3,
+      "num_attention_heads": 8,
+      "use_positional_encoding": false
+    },
+    "task_2_encoder": {
+      "type": "stacked_self_attention",
+      "input_dim": 768,
+      "hidden_dim": 768,
+      "projection_dim": 512,
+      "feedforward_hidden_dim": 512,
       "num_layers": 3,
       "num_attention_heads": 8,
       "use_positional_encoding": false
@@ -169,7 +192,7 @@
           "embedding_dim": 50,
           "vocab_namespace": "ucca_actions"
         },
-        "word_dim": 788,
+        "word_dim": 768,
         "hidden_dim": 200,
         "action_dim": 50,
         "ratio_dim": 1,
@@ -263,7 +286,7 @@
           "embedding_dim": 50,
           "vocab_namespace": "eds_concept_label"
         },
-        "word_dim": 788,
+        "word_dim": 768,
         "hidden_dim": 200,
         "action_dim": 50,
         "concept_label_dim": 50,
@@ -334,7 +357,7 @@
     "grad_norm": 5.0,
     "grad_clipping": 5.0,
     "patience": 50,
-    "cuda_device": 1,
+    "cuda_device":0,
     "validation_metric": "+average_all-f",
     "optimizer": {
       "type": "adam",

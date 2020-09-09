@@ -87,6 +87,8 @@ class MultiTaskModel(Model):
                  models: Dict[str, Model],
                  shared_text_field_embedder: TextFieldEmbedder,
                  shared_encoder: Seq2SeqEncoder = None,
+                 task_1_encoder: Seq2SeqEncoder = None,
+                 task_2_encoder: Seq2SeqEncoder = None,
                  shared_stack: Model = None,
                  shared_buffer: Model = None,
                  task_embedding_dim: int = None,
@@ -130,6 +132,22 @@ class MultiTaskModel(Model):
                                                                task_to_index_dict[task_label])
                 for task_label in models.keys()}
 
+        if task_1_encoder and task_2_encoder:
+            task_to_index_dict = vocab.get_token_to_index_vocabulary("task")
+            if not all(task_label in task_to_index_dict for task_label in models.keys()):
+                print(f'task_to_index_dict:{task_to_index_dict.keys()}')
+                print(f'models.keys(): {models.keys()}')
+
+            assert all(task_label in task_to_index_dict for task_label in models.keys())
+
+            assert len(task_to_index_dict) == 2
+
+            task_encoders = [task_1_encoder, task_2_encoder]
+            text_field_embedder_dict = {
+                task_label: TextFieldEmbedderWithEncoder(text_field_embedder_dict[task_label],
+                                                         task_encoder)
+                for task_encoder, task_label in zip(task_encoders, models.keys())}
+
         self._text_field_embedder = torch.nn.ModuleDict(text_field_embedder_dict)
 
         assert (shared_buffer is None) == (shared_stack is None)
@@ -159,6 +177,9 @@ class MultiTaskModel(Model):
         output_dict = model.forward(**args)
 
         output_dict["framework"] = framework
+
+        if torch.isnan(output_dict["loss"]):
+            output_dict["loss"] = torch.zeros_like(output_dict["loss"])
 
         return output_dict
 

@@ -13,7 +13,7 @@ from modules.stack_rnn import StackRnn
 
 if __name__ == '__main__':
     dirname, filename = os.path.split(os.path.abspath(__file__))
-    config_file = f'{dirname}/config/multi_task_seperate_encoders.json'
+    config_file = f'{dirname}/config/multi_task_stack_buffer.json'
     serialization_dir = f'{dirname}/checkpoints/'
 
     # Training will fail if the serialization directory already
@@ -27,14 +27,13 @@ if __name__ == '__main__':
 
     sys.argv = [
         "allennlp",  # command name, not used by main
-        "train",
+        "make-vocab",
         config_file,
         "-s", serialization_dir,
         "--include-package", "utils",
         "--include-package", "multi_task",
         "--include-package", "modules",
-        "--include-package", "metrics",
-        "--file-friendly-logging",
+        "--include-package", "metrics"
     ]
 
     main()
